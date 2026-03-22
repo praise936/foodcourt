@@ -13,20 +13,19 @@ from .models import MenuItem, MenuCategory
 from .serializers import MenuItemSerializer, MenuItemCreateSerializer, MenuCategorySerializer
 from restaurants.models import Restaurant
 
+from django.db.models import Q
+from notifications.models import Notification  # Import Notification model
+
 
 class MenuListView(APIView):
-    """
-    GET — Public: get all menu items for a restaurant
-    POST — Manager: add a new menu item (with real-time broadcast)
-    """
-
+    """GET — Public: get all menu items for a restaurant"""
+    
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
         return [IsAuthenticated()]
 
     def get(self, request, restaurant_id):
-        # Optional search
         search = request.query_params.get('search', '')
         items = MenuItem.objects.filter(restaurant_id=restaurant_id)
         if search:
@@ -44,26 +43,24 @@ class MenuListView(APIView):
         serializer = MenuItemCreateSerializer(data=request.data)
         if serializer.is_valid():
             item = serializer.save(restaurant=restaurant)
+            item_data = MenuItemSerializer(item, context={'request': request}).data
 
-            # Broadcast new menu item to all users watching this restaurant
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'restaurant_{restaurant_id}',
-                {
-                    'type': 'menu_update',
-                    'message': {
-                        'type': 'NEW_MENU_ITEM',
-                        'item': MenuItemSerializer(item, context={'request': request}).data,
-                        'restaurant_name': restaurant.name,
-                    }
-                }
+            # Create notification for users who have this restaurant saved? 
+            # Or just for platform admins? You can customize this.
+            # For now, create notification for the restaurant manager
+            Notification.objects.create(
+                user=restaurant.manager,
+                type='NEW_MENU_ITEM',
+                title='New Menu Item Added',
+                message=f'Added "{item.name}" to your menu',
+                data={'menu_item_id': item.id, 'item_data': item_data}
             )
 
-            return Response(
-                MenuItemSerializer(item, context={'request': request}).data,
-                status=status.HTTP_201_CREATED
-            )
+            return Response(item_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Other views (MenuItemDetailView, MenuAvailabilityView, MenuCategoryListView) remain the same
 
 
 class MenuItemDetailView(APIView):

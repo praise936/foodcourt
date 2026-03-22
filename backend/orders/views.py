@@ -10,10 +10,11 @@ from asgiref.sync import async_to_sync
 
 from .models import Order
 from .serializers import OrderSerializer, OrderCreateSerializer
+from notifications.models import Notification  # Import Notification model
 
 
 class PlaceOrderView(APIView):
-    """Customer places a new order — notifies restaurant in real time"""
+    """Customer places a new order — create notification for restaurant"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -22,21 +23,68 @@ class PlaceOrderView(APIView):
             order = serializer.save(customer=request.user)
             order_data = OrderSerializer(order, context={'request': request}).data
 
-            # Send real-time notification to the restaurant manager
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'restaurant_{order.restaurant.id}_manager',
-                {
-                    'type': 'new_order',
-                    'message': {
-                        'type': 'NEW_ORDER',
-                        'order': order_data,
-                    }
-                }
+            # Create notification for restaurant manager
+            Notification.objects.create(
+                user=order.restaurant.manager,
+                type='NEW_ORDER',
+                title='New Order Received!',
+                message=f'New order #{order.id} from {order.customer.get_full_name() or order.customer.email}',
+                data={'order_id': order.id, 'order_data': order_data}
             )
 
             return Response(order_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateOrderStatusView(APIView):
+    """Restaurant manager updates order status — notify customer"""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        # Only restaurant manager or admin can update status
+        if order.restaurant.manager != request.user and not request.user.is_platform_admin:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        new_status = request.data.get('status')
+        valid_statuses = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled']
+
+        if new_status not in valid_statuses:
+            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+
+        order.status = new_status
+        order.save()
+
+        order_data = OrderSerializer(order, context={'request': request}).data
+
+        # Create notification for customer
+        notification_type = 'ORDER_STATUS_UPDATE'
+        title = f'Order #{order.id} Status Update'
+        message = f'Your order is now: {order.get_status_display()}'
+        
+        # Special notification types for certain statuses
+        if new_status == 'ready':
+            notification_type = 'ORDER_READY'
+            title = 'Order Ready for Pickup!'
+            message = f'Order #{order.id} is ready. Come pick it up!'
+        elif new_status == 'completed':
+            notification_type = 'ORDER_PICKED_UP'
+            title = 'Order Completed'
+            message = f'Order #{order.id} has been picked up. Thank you!'
+        
+        Notification.objects.create(
+            user=order.customer,
+            type=notification_type,
+            title=title,
+            message=message,
+            data={'order_id': order.id, 'order_data': order_data}
+        )
+
+        return Response(order_data)
+
+
+# Other views (MyOrdersView, OrderDetailView, etc.) remain the same
 
 
 class MyOrdersView(APIView):
