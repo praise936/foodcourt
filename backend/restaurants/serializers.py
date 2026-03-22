@@ -8,8 +8,7 @@ from users.serializers import UserSerializer
 class RestaurantSerializer(serializers.ModelSerializer):
     """Full restaurant data including image URLs and ratings"""
 
-    cover_image_url = serializers.SerializerMethodField()
-    logo_url = serializers.SerializerMethodField()
+
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
     manager_info = UserSerializer(source='manager', read_only=True)
