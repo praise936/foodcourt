@@ -1,0 +1,1 @@
+# notifications/views.py — placeholder (no HTTP views needed for notifications)
