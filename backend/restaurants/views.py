@@ -127,3 +127,22 @@ class MyRestaurantView(APIView):
             return Response({'error': 'No restaurant found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = RestaurantSerializer(restaurant, context={'request': request})
         return Response(serializer.data)
+class RestaurantDeleteView(APIView):
+    """Admin only — permanently delete a restaurant and everything linked to it"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if not request.user.is_platform_admin:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        restaurant = get_object_or_404(Restaurant, pk=pk)
+        name = restaurant.name
+
+        # Django cascade handles orders, menu items, reviews automatically
+        # because all related models have on_delete=models.CASCADE
+        restaurant.delete()
+
+        return Response(
+            {'message': f'"{name}" and all its data have been permanently deleted.'},
+            status=status.HTTP_200_OK
+        )
