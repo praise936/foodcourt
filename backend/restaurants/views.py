@@ -23,7 +23,11 @@ class RestaurantListView(APIView):
     def get(self, request):
         # Optional search by name
         search = request.query_params.get('search', '')
-        restaurants = Restaurant.objects.filter(status='active')
+        if request.user.is_authenticated and request.user.is_platform_admin:
+            restaurants = Restaurant.objects.all()
+        else:
+            # For non-admin users (including unauthenticated), show only active restaurants
+            restaurants = Restaurant.objects.filter(status='active')
         if search:
             restaurants = restaurants.filter(name__icontains=search)
         serializer = RestaurantSerializer(restaurants, many=True, context={'request': request})

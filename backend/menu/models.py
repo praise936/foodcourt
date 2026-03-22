@@ -48,7 +48,7 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     # Food image — frontend will display via image_url
-    image = models.ImageField(upload_to='menu/items/', blank=True, null=True)
+    image = models.URLField(blank=True, null=True)
 
     availability = models.CharField(
         max_length=20,

@@ -27,8 +27,8 @@ class Restaurant(models.Model):
     email = models.EmailField(blank=True)
 
     # Cover photo shown on cards
-    cover_image = models.ImageField(upload_to='restaurants/covers/', blank=True, null=True)
-    logo = models.ImageField(upload_to='restaurants/logos/', blank=True, null=True)
+    cover_image = models.URLField(blank=True, null=True)
+    logo = models.URLField(blank=True, null=True)
 
     cuisine_type = models.CharField(max_length=100, blank=True)
     opening_hours = models.CharField(max_length=200, blank=True, default='9AM - 10PM')

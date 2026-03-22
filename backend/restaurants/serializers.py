@@ -18,22 +18,22 @@ class RestaurantSerializer(serializers.ModelSerializer):
         model = Restaurant
         fields = [
             'id', 'name', 'description', 'address', 'phone', 'email',
-            'cover_image_url', 'logo_url', 'cuisine_type', 'opening_hours',
+            'cover_image', 'logo', 'cuisine_type', 'opening_hours',
             'status', 'is_open', 'average_rating', 'total_reviews',
             'manager_info', 'created_at'
         ]
 
-    def get_cover_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.cover_image and request:
-            return request.build_absolute_uri(obj.cover_image.url)
-        return None
+    # def get_cover_image_url(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.cover_image and request:
+    #         return request.build_absolute_uri(obj.cover_image.url)
+    #     return None
 
-    def get_logo_url(self, obj):
-        request = self.context.get('request')
-        if obj.logo and request:
-            return request.build_absolute_uri(obj.logo.url)
-        return None
+    # def get_logo_url(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.logo and request:
+    #         return request.build_absolute_uri(obj.logo.url)
+    #     return None
 
 
 class RestaurantCreateSerializer(serializers.ModelSerializer):
