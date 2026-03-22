@@ -33,9 +33,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173/"
 ]
 # Application definition
-NGROK_URL = os.environ.get('NGROK_URL')
-if NGROK_URL:
-    CSRF_TRUSTED_ORIGINS.append(NGROK_URL)
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
