@@ -9,19 +9,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
     """Serialize a single order line item"""
 
     menu_item_name = serializers.CharField(source='menu_item.name', read_only=True)
-    menu_item_image_url = serializers.SerializerMethodField()
+    # menu_item_image_url = serializers.SerializerMethodField()
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'menu_item', 'menu_item_name', 'menu_item_image_url',
+        fields = ['id', 'menu_item', 'menu_item_name',
                   'quantity', 'unit_price', 'subtotal']
 
-    def get_menu_item_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.menu_item.image and request:
-            return request.build_absolute_uri(obj.menu_item.image.url)
-        return None
+    # def get_menu_item_image_url(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.menu_item.image and request:
+    #         return request.build_absolute_uri(obj.menu_item.image.url)
+    #     return None
 
 
 class OrderItemCreateSerializer(serializers.ModelSerializer):
