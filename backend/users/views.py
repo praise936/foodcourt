@@ -1,4 +1,4 @@
-# users/views.py — Authentication views (register, login, profile)
+# users/views.py — Authentication views
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,19 +12,28 @@ User = get_user_model()
 
 
 class RegisterView(APIView):
-    """Register a new user account"""
+    """
+    Public registration — customers ONLY.
+    Restaurant managers are registered exclusively from the admin dashboard.
+    Platform admin uses the secret /admin-setup page.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Prevent multiple platform admins
-        if request.data.get('role') == 'platform_admin':
-            if User.objects.filter(role='platform_admin').exists():
-                return Response(
-                    {'error': 'A platform admin already exists.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        requested_role = request.data.get('role', 'customer')
 
-        serializer = UserRegistrationSerializer(data=request.data)
+        # Block anyone from self-registering as manager or admin
+        if requested_role in ['restaurant_manager', 'platform_admin']:
+            return Response(
+                {'error': 'You cannot register as a manager or admin from this page.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Force role to customer regardless of what was sent
+        data = request.data.copy()
+        data['role'] = 'customer'
+
+        serializer = UserRegistrationSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
             refresh = RefreshToken.for_user(user)
@@ -33,6 +42,42 @@ class RegisterView(APIView):
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
             }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RegisterManagerView(APIView):
+    """
+    Admin only — register a new restaurant manager.
+    Admin provides all details including a temporary password.
+    Returns the manager credentials so admin can share them.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Only platform admin can create managers
+        if not request.user.is_platform_admin:
+            return Response(
+                {'error': 'Only platform admin can register restaurant managers.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Force role to restaurant_manager
+        data = request.data.copy()
+        data['role'] = 'restaurant_manager'
+
+        serializer = UserRegistrationSerializer(data=data)
+        if serializer.is_valid():
+            user = serializer.save()
+
+            # Return the plain password too so admin can put it on the receipt
+            # We only do this once — it won't be retrievable after this
+            plain_password = request.data.get('password')
+
+            return Response({
+                'user': UserSerializer(user, context={'request': request}).data,
+                'plain_password': plain_password,  # included only for the receipt
+            }, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -50,7 +95,6 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Look up the user by username directly
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
@@ -59,21 +103,18 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # Check password manually
         if not user.check_password(password):
             return Response(
                 {'error': 'Invalid username or password.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # Check account is active
         if not user.is_active:
             return Response(
                 {'error': 'This account has been deactivated.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user, context={'request': request}).data,
@@ -83,7 +124,7 @@ class LoginView(APIView):
 
 
 class ProfileView(APIView):
-    """Get and update the current user's profile"""
+    """Get and update current user profile"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -91,10 +132,14 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     def put(self, request):
-        serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer = UserUpdateSerializer(
+            request.user, data=request.data, partial=True
+        )
         if serializer.is_valid():
             serializer.save()
-            return Response(UserSerializer(request.user, context={'request': request}).data)
+            return Response(
+                UserSerializer(request.user, context={'request': request}).data
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
