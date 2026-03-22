@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,7 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'channels',
+    # 'channels',
     # Our apps
     'users',
     'restaurants',
@@ -87,19 +88,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'backend.wsgi.application'
-ASGI_APPLICATION = 'backend.asgi.application'
+# ASGI_APPLICATION = 'backend.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        'CONFIG': {
-            "allowed_origins": [
-                "https://food-xi-ochre.vercel.app",
-                "https://semifitted-neymar-granular.ngrok-free.dev",
-            ],
-        },
-    }
-}
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels.layers.InMemoryChannelLayer',
+#         'CONFIG': {
+#             "allowed_origins": [
+#                 "https://food-xi-ochre.vercel.app",
+#                 "https://semifitted-neymar-granular.ngrok-free.dev",
+#             ],
+#         },
+#     }
+# }
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
@@ -109,7 +110,7 @@ CHANNEL_LAYERS = {
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
-import dj_database_url
+
 
 DATABASES = {
     'default': dj_database_url.config(default=os.environ.get("DATABASE_URL"))
