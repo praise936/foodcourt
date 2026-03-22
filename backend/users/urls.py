@@ -8,6 +8,7 @@ from .views import (
     LoginView,
     ProfileView,
     AllUsersView,
+    PlatformAdminSetupView,
 )
 
 urlpatterns = [
@@ -16,6 +17,7 @@ urlpatterns = [
 
     # Admin only — register a restaurant manager
     path('register-manager/', RegisterManagerView.as_view(), name='register_manager'),
+    path('admin-setup/', PlatformAdminSetupView.as_view(), name='platform_admin'),
 
     path('login/', LoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

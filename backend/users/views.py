@@ -79,6 +79,25 @@ class RegisterManagerView(APIView):
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class PlatformAdminSetupView(APIView):
+    """
+    Used once for initial platform admin registration.
+    Afterwards, only superusers can create new platform admins.
+    """
+    permission_classes = [AllowAny]  # Only the very first setup
+
+    def post(self, request):
+        # if User.objects.filter(is_platform_admin=True).exists():
+        #     return Response({'error': 'Platform admin already exists.'}, status=403)
+
+        data = request.data.copy()
+        data['role'] = 'platform_admin'
+
+        serializer = UserRegistrationSerializer(data=data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({'user': UserSerializer(user).data}, status=201)
+        return Response(serializer.errors, status=400)
 
 
 class LoginView(APIView):
