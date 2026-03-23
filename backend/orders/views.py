@@ -1,16 +1,16 @@
-# orders/views.py — Order placement and management
-
+# orders/views.py — Order placement and management (No WebSockets)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+
+# REMOVED: from channels.layers import get_channel_layer
+# REMOVED: from asgiref.sync import async_to_sync
 
 from .models import Order
 from .serializers import OrderSerializer, OrderCreateSerializer
-from notifications.models import Notification  # Import Notification model
+from notifications.models import Notification
 
 
 class PlaceOrderView(APIView):
@@ -36,8 +36,31 @@ class PlaceOrderView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class MyOrdersView(APIView):
+    """Customer sees only their own orders"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        orders = Order.objects.filter(customer=request.user).order_by('-created_at')
+        serializer = OrderSerializer(orders, many=True, context={'request': request})
+        return Response(serializer.data)
+
+
+class OrderDetailView(APIView):
+    """Get or update a single order — customer or restaurant manager"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+        # Only the customer or the restaurant manager can see this order
+        if order.customer != request.user and order.restaurant.manager != request.user and not request.user.is_platform_admin:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = OrderSerializer(order, context={'request': request})
+        return Response(serializer.data)
+
+
 class UpdateOrderStatusView(APIView):
-    """Restaurant manager updates order status — notify customer"""
+    """Restaurant manager updates order status — creates notification for customer"""
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
@@ -79,70 +102,6 @@ class UpdateOrderStatusView(APIView):
             title=title,
             message=message,
             data={'order_id': order.id, 'order_data': order_data}
-        )
-
-        return Response(order_data)
-
-
-# Other views (MyOrdersView, OrderDetailView, etc.) remain the same
-
-
-class MyOrdersView(APIView):
-    """Customer sees only their own orders"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        orders = Order.objects.filter(customer=request.user).order_by('-created_at')
-        serializer = OrderSerializer(orders, many=True, context={'request': request})
-        return Response(serializer.data)
-
-
-class OrderDetailView(APIView):
-    """Get or update a single order — customer or restaurant manager"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, pk):
-        order = get_object_or_404(Order, pk=pk)
-        # Only the customer or the restaurant manager can see this order
-        if order.customer != request.user and order.restaurant.manager != request.user and not request.user.is_platform_admin:
-            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = OrderSerializer(order, context={'request': request})
-        return Response(serializer.data)
-
-
-class UpdateOrderStatusView(APIView):
-    """Restaurant manager updates order status — notifies customer in real time"""
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, pk):
-        order = get_object_or_404(Order, pk=pk)
-
-        # Only restaurant manager or admin can update status
-        if order.restaurant.manager != request.user and not request.user.is_platform_admin:
-            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-
-        new_status = request.data.get('status')
-        valid_statuses = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled']
-
-        if new_status not in valid_statuses:
-            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-
-        order.status = new_status
-        order.save()
-
-        order_data = OrderSerializer(order, context={'request': request}).data
-
-        # Notify the customer that their order status changed
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'user_{order.customer.id}',
-            {
-                'type': 'order_update',
-                'message': {
-                    'type': 'ORDER_STATUS_UPDATE',
-                    'order': order_data,
-                }
-            }
         )
 
         return Response(order_data)
