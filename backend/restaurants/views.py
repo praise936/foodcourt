@@ -81,9 +81,22 @@ class RestaurantDetailView(APIView):
 
     def put(self, request, pk):
         restaurant = get_object_or_404(Restaurant, pk=pk)
-        # Only manager of this restaurant or admin can update
         if not (request.user.is_platform_admin or restaurant.manager == request.user):
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Allow changing manager if manager_id is in the request
+        manager_id = request.data.get('manager_id')
+        if manager_id:
+            from users.models import User
+            try:
+                new_manager = User.objects.get(id=manager_id, role='restaurant_manager')
+                restaurant.manager = new_manager
+                restaurant.save()
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Manager not found.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         serializer = RestaurantCreateSerializer(restaurant, data=request.data, partial=True)
         if serializer.is_valid():

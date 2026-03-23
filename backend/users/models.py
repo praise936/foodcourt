@@ -5,10 +5,6 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """
-    Extended user model with role support.
-    Roles: platform_admin, restaurant_manager, customer
-    """
 
     ROLE_CHOICES = (
         ('platform_admin', 'Platform Admin'),
@@ -20,9 +16,13 @@ class User(AbstractUser):
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=20, blank=True, null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+
+    # Stores the password reset token when a reset is requested
+    # Cleared after reset is used
+    password_reset_token = models.CharField(max_length=64, blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Use email as the login field instead of username
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
@@ -31,7 +31,6 @@ class User(AbstractUser):
 
     @property
     def avatar_url(self):
-        """Return full URL for avatar image"""
         if self.avatar:
             return self.avatar.url
         return None

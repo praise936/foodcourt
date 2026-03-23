@@ -7,10 +7,12 @@ from .views import (
     RegisterManagerView,
     LoginView,
     ProfileView,
+    ChangePasswordView,
+    ForgotPasswordView,
+    ResetPasswordView,
     AllUsersView,
     PlatformAdminSetupView,
 )
-
 urlpatterns = [
     # Public — customers only
     path('register/', RegisterView.as_view(), name='register'),
@@ -23,4 +25,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('profile/', ProfileView.as_view(), name='profile'),
     path('users/', AllUsersView.as_view(), name='all_users'),
+    path('change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
+    path('reset-password/', ResetPasswordView.as_view(), name='reset_password'),
 ]

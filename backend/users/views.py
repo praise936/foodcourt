@@ -1,12 +1,23 @@
 # users/views.py — Authentication views
 
+
+
+import uuid
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-from .serializers import UserRegistrationSerializer, UserSerializer, UserUpdateSerializer
+from .serializers import (
+    UserRegistrationSerializer,
+    UserSerializer,
+    UserUpdateSerializer,
+    ChangePasswordSerializer,
+)
 
 User = get_user_model()
 
@@ -46,39 +57,27 @@ class RegisterView(APIView):
 
 
 class RegisterManagerView(APIView):
-    """
-    Admin only — register a new restaurant manager.
-    Admin provides all details including a temporary password.
-    Returns the manager credentials so admin can share them.
-    """
+    """Admin only — register a restaurant manager"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Only platform admin can create managers
         if not request.user.is_platform_admin:
             return Response(
                 {'error': 'Only platform admin can register restaurant managers.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-
-        # Force role to restaurant_manager
         data = request.data.copy()
         data['role'] = 'restaurant_manager'
-
         serializer = UserRegistrationSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
-
-            # Return the plain password too so admin can put it on the receipt
-            # We only do this once — it won't be retrievable after this
             plain_password = request.data.get('password')
-
             return Response({
                 'user': UserSerializer(user, context={'request': request}).data,
-                'plain_password': plain_password,  # included only for the receipt
+                'plain_password': plain_password,
             }, status=status.HTTP_201_CREATED)
-
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 class PlatformAdminSetupView(APIView):
     """
     Used once for initial platform admin registration.
@@ -160,6 +159,144 @@ class ProfileView(APIView):
                 UserSerializer(request.user, context={'request': request}).data
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    """Logged in user changes their own password"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        current_password = serializer.validated_data['current_password']
+        new_password = serializer.validated_data['new_password']
+
+        # Verify current password is correct
+        if not user.check_password(current_password):
+            return Response(
+                {'error': 'Current password is incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(new_password)
+        user.save()
+
+        # Re-generate tokens since password changed
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'message': 'Password changed successfully.',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })
+
+
+class ForgotPasswordView(APIView):
+    """
+    User submits their email.
+    We generate a reset token, save it on the user, and email a reset link.
+    In dev mode the email prints to the console/terminal.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response(
+                {'error': 'Email address is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # We always return 200 even if email not found — security best practice
+        # so attackers can't enumerate which emails are registered
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({
+                'message': 'If that email is registered, a reset link has been sent.'
+            })
+
+        # Generate a unique token and store it on the user
+        token = str(uuid.uuid4()).replace('-', '')
+        user.password_reset_token = token
+        user.save()
+
+        # Build the reset URL pointing to our frontend
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{token}"
+
+        # Send the email
+        send_mail(
+            subject='Reset Your FoodCourt Password',
+            message=f"""
+Hello {user.first_name or user.username},
+
+You requested a password reset for your FoodCourt account.
+
+Click the link below to set a new password:
+
+{reset_url}
+
+If you did not request this, please ignore this email.
+Your password will not change.
+
+— The FoodCourt Team
+            """,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+        return Response({
+            'message': 'If that email is registered, a reset link has been sent.'
+        })
+
+
+class ResetPasswordView(APIView):
+    """
+    User clicks the link from email, submits new password with the token.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token', '').strip()
+        new_password = request.data.get('new_password', '')
+        confirm_password = request.data.get('confirm_password', '')
+
+        if not token or not new_password:
+            return Response(
+                {'error': 'Token and new password are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {'error': 'Passwords do not match.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(new_password) < 6:
+            return Response(
+                {'error': 'Password must be at least 6 characters.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Find user by token
+        try:
+            user = User.objects.get(password_reset_token=token)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Invalid or expired reset link.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Set new password and clear the token
+        user.set_password(new_password)
+        user.password_reset_token = ''
+        user.save()
+
+        return Response({'message': 'Password reset successfully. You can now log in.'})
 
 
 class AllUsersView(APIView):
