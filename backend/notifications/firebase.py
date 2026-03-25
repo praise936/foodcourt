@@ -1,18 +1,30 @@
 # notifications/firebase.py
 import os
 import json
+import tempfile
 import firebase_admin
 from firebase_admin import credentials, messaging
 
 # Initialize Firebase
 if not firebase_admin._apps:
-    # Try to get credentials from environment variable first (Railway)
+    # Try to get credentials from environment variable
     firebase_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
     
     if firebase_json:
-        # Running on Railway - use environment variable
-        cred_dict = json.loads(firebase_json)
-        cred = credentials.Certificate(cred_dict)
+        # Create a temporary file for the credentials
+        # This solves the Railway secret file issue
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            f.write(firebase_json)
+            temp_file_path = f.name
+        
+        cred = credentials.Certificate(temp_file_path)
+        firebase_admin.initialize_app(cred)
+        
+        # Clean up temp file after initialization
+        try:
+            os.unlink(temp_file_path)
+        except:
+            pass
     else:
         # Running locally - use file
         from pathlib import Path
@@ -26,8 +38,7 @@ if not firebase_admin._apps:
                 f"Railway: Add FIREBASE_SERVICE_ACCOUNT environment variable"
             )
         cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
-    
-    firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred)
 
 def send_push_notification(token, title, body, data=None):
     """Send a push notification to a single device token."""
