@@ -1,48 +1,50 @@
 # notifications/firebase.py
 import os
-import json
-import tempfile
 import firebase_admin
 from firebase_admin import credentials, messaging
 
 # Initialize Firebase
 if not firebase_admin._apps:
-    # Try to get credentials from environment variable
-    firebase_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
-    
-    if firebase_json:
-        # Create a temporary file for the credentials
-        # This solves the Railway secret file issue
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            f.write(firebase_json)
-            temp_file_path = f.name
+    # Check if we have the individual environment variables
+    if os.environ.get('FIREBASE_TYPE') and os.environ.get('FIREBASE_PROJECT_ID'):
+        # Build the credentials dict from environment variables
+        cred_dict = {
+            "type": os.environ.get('FIREBASE_TYPE'),
+            "project_id": os.environ.get('FIREBASE_PROJECT_ID'),
+            "private_key_id": os.environ.get('FIREBASE_PRIVATE_KEY_ID'),
+            "private_key": os.environ.get('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n'),
+            "client_email": os.environ.get('FIREBASE_CLIENT_EMAIL'),
+            "client_id": os.environ.get('FIREBASE_CLIENT_ID'),
+            "auth_uri": os.environ.get('FIREBASE_AUTH_URI'),
+            "token_uri": os.environ.get('FIREBASE_TOKEN_URI'),
+            "auth_provider_x509_cert_url": os.environ.get('FIREBASE_AUTH_PROVIDER_X509_CERT_URL'),
+            "client_x509_cert_url": os.environ.get('FIREBASE_CLIENT_X509_CERT_URL'),
+            "universe_domain": os.environ.get('FIREBASE_UNIVERSE_DOMAIN')
+        }
         
-        cred = credentials.Certificate(temp_file_path)
+        cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
-        
-        # Clean up temp file after initialization
-        try:
-            os.unlink(temp_file_path)
-        except:
-            pass
+        print("Firebase initialized with environment variables")
     else:
-        # Running locally - use file
+        # Local development - use file
         from pathlib import Path
         BASE_DIR = Path(__file__).resolve().parent.parent
         SERVICE_ACCOUNT_PATH = BASE_DIR / 'firebase-service-account.json'
         
-        if not SERVICE_ACCOUNT_PATH.exists():
-            raise FileNotFoundError(
-                f"Firebase credentials not found.\n"
-                f"Local: Create firebase-service-account.json at {SERVICE_ACCOUNT_PATH}\n"
-                f"Railway: Add FIREBASE_SERVICE_ACCOUNT environment variable"
-            )
-        cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
-        firebase_admin.initialize_app(cred)
+        if SERVICE_ACCOUNT_PATH.exists():
+            cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
+            firebase_admin.initialize_app(cred)
+            print("Firebase initialized with file")
+        else:
+            print("Firebase not configured - notifications disabled")
 
 def send_push_notification(token, title, body, data=None):
     """Send a push notification to a single device token."""
     if not token:
+        return None
+    
+    if not firebase_admin._apps:
+        print("Firebase not initialized, skipping notification")
         return None
 
     try:
@@ -77,6 +79,10 @@ def send_push_notification(token, title, body, data=None):
 def send_push_to_multiple(tokens, title, body, data=None):
     """Send the same notification to multiple device tokens."""
     if not tokens:
+        return
+    
+    if not firebase_admin._apps:
+        print("Firebase not initialized, skipping notifications")
         return
 
     valid_tokens = [t for t in tokens if t]
