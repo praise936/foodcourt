@@ -1,47 +1,26 @@
 # notifications/views.py
+# Endpoint where the frontend saves the FCM token for a user
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from .models import Notification
-from .serializers import NotificationSerializer
 
 
-class NotificationListView(APIView):
-    """Get all notifications for current user"""
+class SaveFCMTokenView(APIView):
+    """
+    Frontend calls this after getting an FCM token from Firebase.
+    We save it on the user so we can push notifications to them.
+    """
     permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        notifications = Notification.objects.filter(user=request.user)
-        serializer = NotificationSerializer(notifications, many=True)
-        return Response(serializer.data)
 
-
-class NotificationMarkAllReadView(APIView):
-    """Mark all notifications as read"""
-    permission_classes = [IsAuthenticated]
-    
     def post(self, request):
-        Notification.objects.filter(user=request.user, read=False).update(read=True)
-        return Response({'message': 'All notifications marked as read'})
-
-
-class NotificationMarkReadView(APIView):
-    """Mark single notification as read"""
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request, pk):
-        notification = get_object_or_404(Notification, pk=pk, user=request.user)
-        notification.read = True
-        notification.save()
-        return Response({'message': 'Notification marked as read'})
-
-
-class NotificationClearView(APIView):
-    """Delete all notifications for current user"""
-    permission_classes = [IsAuthenticated]
-    
-    def delete(self, request):
-        Notification.objects.filter(user=request.user).delete()
-        return Response({'message': 'All notifications cleared'}, status=status.HTTP_204_NO_CONTENT)
+        token = request.data.get('token', '').strip()
+        if not token:
+            return Response(
+                {'error': 'Token is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        request.user.fcm_token = token
+        request.user.save()
+        return Response({'message': 'FCM token saved.'})

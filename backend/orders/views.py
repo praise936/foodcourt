@@ -1,20 +1,20 @@
-# orders/views.py — Order placement and management (No WebSockets)
+# orders/views.py — Order placement and management
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from notifications.firebase import send_push_notification
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-
-# REMOVED: from channels.layers import get_channel_layer
-# REMOVED: from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from .models import Order
 from .serializers import OrderSerializer, OrderCreateSerializer
-from notifications.models import Notification
 
 
 class PlaceOrderView(APIView):
-    """Customer places a new order — create notification for restaurant"""
+    """Customer places a new order — notifies restaurant in real time"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -23,14 +23,30 @@ class PlaceOrderView(APIView):
             order = serializer.save(customer=request.user)
             order_data = OrderSerializer(order, context={'request': request}).data
 
-            # Create notification for restaurant manager
-            Notification.objects.create(
-                user=order.restaurant.manager,
-                type='NEW_ORDER',
-                title='New Order Received!',
-                message=f'New order #{order.id} from {order.customer.get_full_name() or order.customer.email}',
-                data={'order_id': order.id, 'order_data': order_data}
+            # Send real-time notification to the restaurant manager
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'restaurant_{order.restaurant.id}_manager',
+                {
+                    'type': 'new_order',
+                    'message': {
+                        'type': 'NEW_ORDER',
+                        'order': order_data,
+                    }
+                }
             )
+            # Inside PlaceOrderView.post — add after the channel_layer group_send block
+
+            # Push notification to restaurant manager
+            
+            manager = order.restaurant.manager
+            if manager.fcm_token:
+                send_push_notification(
+                    token=manager.fcm_token,
+                    title=f'🛎️ New Order — {order.restaurant.name}',
+                    body=f'Order #{order.id} from {request.user.get_full_name() or request.user.username}',
+                    data={'type': 'NEW_ORDER', 'order_id': str(order.id)},
+                )
 
             return Response(order_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -60,7 +76,7 @@ class OrderDetailView(APIView):
 
 
 class UpdateOrderStatusView(APIView):
-    """Restaurant manager updates order status — creates notification for customer"""
+    """Restaurant manager updates order status — notifies customer in real time"""
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
@@ -81,28 +97,28 @@ class UpdateOrderStatusView(APIView):
 
         order_data = OrderSerializer(order, context={'request': request}).data
 
-        # Create notification for customer
-        notification_type = 'ORDER_STATUS_UPDATE'
-        title = f'Order #{order.id} Status Update'
-        message = f'Your order is now: {order.get_status_display()}'
-        
-        # Special notification types for certain statuses
-        if new_status == 'ready':
-            notification_type = 'ORDER_READY'
-            title = 'Order Ready for Pickup!'
-            message = f'Order #{order.id} is ready. Come pick it up!'
-        elif new_status == 'completed':
-            notification_type = 'ORDER_PICKED_UP'
-            title = 'Order Completed'
-            message = f'Order #{order.id} has been picked up. Thank you!'
-        
-        Notification.objects.create(
-            user=order.customer,
-            type=notification_type,
-            title=title,
-            message=message,
-            data={'order_id': order.id, 'order_data': order_data}
+        # Notify the customer that their order status changed
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'user_{order.customer.id}',
+            {
+                'type': 'order_update',
+                'message': {
+                    'type': 'ORDER_STATUS_UPDATE',
+                    'order': order_data,
+                }
+            }
         )
+        # Push notification to customer
+            
+        customer = order.customer
+        if customer.fcm_token:
+            send_push_notification(
+                token=customer.fcm_token,
+                title=f'📦 Order Update — {order.restaurant.name}',
+                body=f'Your order #{order.id} is now: {order.get_status_display()}',
+                data={'type': 'ORDER_UPDATE', 'order_id': str(order.id)},
+            )
 
         return Response(order_data)
 

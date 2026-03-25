@@ -19,6 +19,7 @@ class User(AbstractUser):
 
     # Stores the password reset token when a reset is requested
     # Cleared after reset is used
+    fcm_token = models.CharField(max_length=512, blank=True, default='')
     password_reset_token = models.CharField(max_length=64, blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)

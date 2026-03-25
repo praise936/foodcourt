@@ -30,7 +30,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     "https://food-xi-ochre.vercel.app",
-    "http://localhost:5173/"
+    "http://localhost:5173/",
+    "http://localhost:5174",
 ]
 # Application definition
 
@@ -154,8 +155,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # For development, serve static files
 if DEBUG:
     STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-else:
-    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
     
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
 MEDIA_URL = '/media/'
@@ -191,6 +191,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
     "http://localhost:5173",
+    "http://localhost:5174",
 ]
 
 # If you need to allow credentials (cookies, authorization headers)
@@ -227,7 +228,7 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='foodcourt <praisepetr23@gmail.com>')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='foodie <praisepetr23@gmail.com>')
 
 # Frontend URL — used in password reset emails
 FRONTEND_URL = config('FRONTEND_URL', default='https://food-xi-ochre.vercel.app')
