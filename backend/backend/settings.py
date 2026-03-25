@@ -183,20 +183,20 @@ AUTH_USER_MODEL = 'users.User'
 # CORS_ALLOW_ALL_ORIGINS = DEBUG  # Remove this line
 
 # Explicitly set allowed origins
-CORS_ALLOWED_ORIGINS = [
-    "https://food-xi-ochre.vercel.app",
-    "https://semifitted-neymar-granular.ngrok-free.dev",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "https://food-xi-ochre.vercel.app",
+#     "https://semifitted-neymar-granular.ngrok-free.dev",
+#     "http://localhost:3000",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:3000",
+#     "http://127.0.0.1:8000",
+#     "http://localhost:5173",
+#     "http://localhost:5174",
+# ]
 
 # If you need to allow credentials (cookies, authorization headers)
 
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Make sure these methods are allowed
