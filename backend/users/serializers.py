@@ -39,13 +39,11 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'username', 'first_name', 'last_name',
-                  'role', 'phone', 'avatar_url', 'created_at']
+                  'role', 'phone', 'avatar_url', 'created_at',"avatar"]
 
     def get_avatar_url(self, obj):
-        request = self.context.get('request')
-        if obj.avatar and request:
-            return request.build_absolute_uri(obj.avatar.url)
-        return None
+        """Return the avatar URL"""
+        return obj.avatar
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
