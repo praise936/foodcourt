@@ -15,10 +15,8 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=20, blank=True, null=True)
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    avatar = models.URLField(max_length=500, blank=True, null=True)
 
-    # Stores the password reset token when a reset is requested
-    # Cleared after reset is used
     fcm_token = models.CharField(max_length=512, blank=True, default='')
     password_reset_token = models.CharField(max_length=64, blank=True, default='')
 
@@ -30,11 +28,7 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.email} ({self.role})"
 
-    @property
-    def avatar_url(self):
-        if self.avatar:
-            return self.avatar.url
-        return None
+    
 
     @property
     def is_platform_admin(self):

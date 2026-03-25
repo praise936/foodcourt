@@ -49,11 +49,16 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """For updating profile info"""
-
+    """For updating profile info - now accepts avatar URL string instead of file"""
+    avatar_url = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone', 'avatar']
+        fields = ['first_name', 'last_name', 'phone', 'avatar', 'avatar_url']
+    
+    def get_avatar_url(self, obj):
+        """Return the avatar URL"""
+        return obj.avatar
 class ChangePasswordSerializer(serializers.Serializer):
     """Validates password change — requires current password"""
     current_password = serializers.CharField(required=True)
