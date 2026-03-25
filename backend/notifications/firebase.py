@@ -13,7 +13,101 @@ SERVICE_ACCOUNT_PATH = BASE_DIR / 'firebase-service-account.json'
 
 # Initialise only once — guard against double init during hot reload
 if not firebase_admin._apps:
+    cred = credentials.Certificate(str(SERVICE_ACCOUNT_PAT# notifications/firebase.py
+import os
+import firebase_admin
+from firebase_admin import credentials, messaging
+from pathlib import Path
+
+# Get the path to the service account file
+BASE_DIR = Path(__file__).resolve().parent.parent
+SERVICE_ACCOUNT_PATH = BASE_DIR / 'firebase-service-account.json'
+
+# Check if file exists
+if not SERVICE_ACCOUNT_PATH.exists():
+    raise FileNotFoundError(
+        f"Firebase service account file not found at {SERVICE_ACCOUNT_PATH}\n"
+        f"Please create this file with your Firebase credentials."
+    )
+
+# Initialize Firebase only once
+if not firebase_admin._apps:
     cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
+    firebase_admin.initialize_app(cred)
+
+
+def send_push_notification(token, title, body, data=None):
+    """Send a push notification to a single device token."""
+    if not token:
+        return None
+
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            data={k: str(v) for k, v in (data or {}).items()},
+            token=token,
+            webpush=messaging.WebpushConfig(
+                notification=messaging.WebpushNotification(
+                    title=title,
+                    body=body,
+                    icon='/icons/icon-192x192.png',
+                    badge='/icons/icon-72x72.png',
+                    vibrate=[200, 100, 200],
+                ),
+                fcm_options=messaging.WebpushFCMOptions(
+                    link='/'
+                ),
+            ),
+        )
+        response = messaging.send(message)
+        return response
+    except messaging.UnregisteredError:
+        return 'unregistered'
+    except Exception as e:
+        print(f'FCM send error: {e}')
+        return None
+
+
+def send_push_to_multiple(tokens, title, body, data=None):
+    """Send the same notification to multiple device tokens."""
+    if not tokens:
+        return
+
+    valid_tokens = [t for t in tokens if t]
+    if not valid_tokens:
+        return
+
+    # FCM limit is 500 per call
+    batch_size = 500
+    for i in range(0, len(valid_tokens), batch_size):
+        batch = valid_tokens[i:i + batch_size]
+        try:
+            message = messaging.MulticastMessage(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                data={k: str(v) for k, v in (data or {}).items()},
+                tokens=batch,
+                webpush=messaging.WebpushConfig(
+                    notification=messaging.WebpushNotification(
+                        title=title,
+                        body=body,
+                        icon='/icons/icon-192x192.png',
+                        badge='/icons/icon-72x72.png',
+                        vibrate=[200, 100, 200],
+                    ),
+                    fcm_options=messaging.WebpushFCMOptions(
+                        link='/'
+                    ),
+                ),
+            )
+            messaging.send_each_for_multicast(message)
+        except Exception as e:
+            print(f'FCM multicast error: {e}')H))
     firebase_admin.initialize_app(cred)
 
 
