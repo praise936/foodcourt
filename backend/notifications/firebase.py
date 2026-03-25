@@ -1,12 +1,18 @@
 # notifications/firebase.py
+
 import os
+import logging
 import firebase_admin
 from firebase_admin import credentials, messaging
+
+logger = logging.getLogger(__name__)
 
 # Initialize Firebase
 if not firebase_admin._apps:
     # Check if we have the individual environment variables
     if os.environ.get('FIREBASE_TYPE') and os.environ.get('FIREBASE_PROJECT_ID'):
+        logger.info("Initializing Firebase with environment variables")
+        
         # Build the credentials dict from environment variables
         cred_dict = {
             "type": os.environ.get('FIREBASE_TYPE'),
@@ -22,9 +28,12 @@ if not firebase_admin._apps:
             "universe_domain": os.environ.get('FIREBASE_UNIVERSE_DOMAIN')
         }
         
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
-        print("Firebase initialized with environment variables")
+        try:
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            logger.info("Firebase initialized successfully with environment variables")
+        except Exception as e:
+            logger.error(f"Firebase initialization failed: {e}")
     else:
         # Local development - use file
         from pathlib import Path
@@ -32,11 +41,14 @@ if not firebase_admin._apps:
         SERVICE_ACCOUNT_PATH = BASE_DIR / 'firebase-service-account.json'
         
         if SERVICE_ACCOUNT_PATH.exists():
-            cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
-            firebase_admin.initialize_app(cred)
-            print("Firebase initialized with file")
+            try:
+                cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
+                firebase_admin.initialize_app(cred)
+                logger.info("Firebase initialized with service account file")
+            except Exception as e:
+                logger.error(f"Firebase initialization failed: {e}")
         else:
-            print("Firebase not configured - notifications disabled")
+            logger.warning("Firebase not configured - notifications disabled")
 
 def send_push_notification(token, title, body, data=None):
     """Send a push notification to a single device token."""
