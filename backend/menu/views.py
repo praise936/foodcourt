@@ -48,22 +48,6 @@ class MenuListView(APIView):
         if serializer.is_valid():
             item = serializer.save(restaurant=restaurant)
 
-            # COMMENT OUT or REMOVE the Channels broadcast code
-            # Broadcast new menu item to all users watching this restaurant
-            # channel_layer = get_channel_layer()
-            # async_to_sync(channel_layer.group_send)(
-            #     f'restaurant_{restaurant_id}',
-            #     {
-            #         'type': 'menu_update',
-            #         'message': {
-            #             'type': 'NEW_MENU_ITEM',
-            #             'item': MenuItemSerializer(item, context={'request': request}).data,
-            #             'restaurant_name': restaurant.name,
-            #         }
-            #     }
-            # )
-            
-            # Push notification to ALL customers who have an FCM token
             User = get_user_model()
             customer_tokens = list(
                 User.objects.filter(
@@ -78,6 +62,7 @@ class MenuListView(APIView):
                     body=f'{item.name} is now available!',
                     data={'type': 'NEW_MENU_ITEM', 'restaurant_id': str(restaurant_id)},
                 )
+                
 
             return Response(
                 MenuItemSerializer(item, context={'request': request}).data,

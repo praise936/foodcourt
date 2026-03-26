@@ -81,6 +81,8 @@ def send_push_notification(token, title, body, data=None):
             ),
         )
         response = messaging.send(message)
+        print("notification sent")
+        
         return response
     except messaging.UnregisteredError:
         return 'unregistered'
@@ -126,5 +128,6 @@ def send_push_to_multiple(tokens, title, body, data=None):
                 ),
             )
             messaging.send_each_for_multicast(message)
+            print(f"Sending to {len(valid_tokens)} tokens")
         except Exception as e:
             print(f'FCM multicast error: {e}')
