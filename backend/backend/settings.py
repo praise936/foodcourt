@@ -29,8 +29,8 @@ CSRF_TRUSTED_ORIGINS = [
     # Add other trusted origins if needed
     'http://localhost:8000',
     'http://127.0.0.1:8000',
-    "http://food-xi-ochre.vercel.app",
-    "https://food-xi-ochre.vercel.app",
+    "http://food-xi-ochre.vercel.app/",
+    "https://food-xi-ochre.vercel.app/",
     "http://localhost:5173/",
     "http://localhost:5174",
 ]
@@ -185,8 +185,8 @@ AUTH_USER_MODEL = 'users.User'
 
 # Explicitly set allowed origins
 CORS_ALLOWED_ORIGINS = [
-    "https://food-xi-ochre.vercel.app",
-    "http://food-xi-ochre.vercel.app",
+    "https://food-xi-ochre.vercel.app/",
+    "http://food-xi-ochre.vercel.app/",
     "https://semifitted-neymar-granular.ngrok-free.dev",
     "http://localhost:3000",
     "http://localhost:8000",
