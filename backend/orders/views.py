@@ -23,18 +23,18 @@ class PlaceOrderView(APIView):
             order = serializer.save(customer=request.user)
             order_data = OrderSerializer(order, context={'request': request}).data
 
-            # Send real-time notification to the restaurant manager
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'restaurant_{order.restaurant.id}_manager',
-                {
-                    'type': 'new_order',
-                    'message': {
-                        'type': 'NEW_ORDER',
-                        'order': order_data,
-                    }
-                }
-            )
+            # # Send real-time notification to the restaurant manager
+            # channel_layer = get_channel_layer()
+            # async_to_sync(channel_layer.group_send)(
+            #     f'restaurant_{order.restaurant.id}_manager',
+            #     {
+            #         'type': 'new_order',
+            #         'message': {
+            #             'type': 'NEW_ORDER',
+            #             'order': order_data,
+            #         }
+            #     }
+            # )
             # Inside PlaceOrderView.post — add after the channel_layer group_send block
 
             # Push notification to restaurant manager

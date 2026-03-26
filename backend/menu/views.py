@@ -1,12 +1,13 @@
-# menu/views.py — Menu item CRUD
+# menu/views.py — Menu item CRUD (without Channels)
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+# REMOVE these imports
+# from channels.layers import get_channel_layer
+# from asgiref.sync import async_to_sync
 import json
 from notifications.firebase import send_push_to_multiple
 from django.contrib.auth import get_user_model
@@ -19,7 +20,7 @@ from restaurants.models import Restaurant
 class MenuListView(APIView):
     """
     GET — Public: get all menu items for a restaurant
-    POST — Manager: add a new menu item (with real-time broadcast)
+    POST — Manager: add a new menu item
     """
 
     def get_permissions(self):
@@ -47,21 +48,22 @@ class MenuListView(APIView):
         if serializer.is_valid():
             item = serializer.save(restaurant=restaurant)
 
+            # COMMENT OUT or REMOVE the Channels broadcast code
             # Broadcast new menu item to all users watching this restaurant
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'restaurant_{restaurant_id}',
-                {
-                    'type': 'menu_update',
-                    'message': {
-                        'type': 'NEW_MENU_ITEM',
-                        'item': MenuItemSerializer(item, context={'request': request}).data,
-                        'restaurant_name': restaurant.name,
-                    }
-                }
-            )
-            # Push notification to ALL customers who have an FCM token
+            # channel_layer = get_channel_layer()
+            # async_to_sync(channel_layer.group_send)(
+            #     f'restaurant_{restaurant_id}',
+            #     {
+            #         'type': 'menu_update',
+            #         'message': {
+            #             'type': 'NEW_MENU_ITEM',
+            #             'item': MenuItemSerializer(item, context={'request': request}).data,
+            #             'restaurant_name': restaurant.name,
+            #         }
+            #     }
+            # )
             
+            # Push notification to ALL customers who have an FCM token
             User = get_user_model()
             customer_tokens = list(
                 User.objects.filter(
