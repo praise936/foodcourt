@@ -71,12 +71,12 @@ def send_push_notification(token, title, body, data=None):
                 notification=messaging.WebpushNotification(
                     title=title,
                     body=body,
-                    icon='/icons/icon-192x192.png',
-                    badge='/icons/icon-72x72.png',
+                    icon='icon-192x192.png',
+                    badge='icon-72x72.png',
                     vibrate=[200, 100, 200],
                 ),
                 fcm_options=messaging.WebpushFCMOptions(
-                    link='/'
+                    link='https://food-xi-ochre.vercel.app/'
                 ),
             ),
         )
@@ -116,12 +116,12 @@ def send_push_to_multiple(tokens, title, body, data=None):
                     notification=messaging.WebpushNotification(
                         title=title,
                         body=body,
-                        icon='/icons/icon-192x192.png',
-                        badge='/icons/icon-72x72.png',
+                        icon='icon-192x192.png',
+                        badge='icon-72x72.png',
                         vibrate=[200, 100, 200],
                     ),
                     fcm_options=messaging.WebpushFCMOptions(
-                        link='/'
+                        link='https://food-xi-ochre.vercel.app/'
                     ),
                 ),
             )
