@@ -98,17 +98,17 @@ class UpdateOrderStatusView(APIView):
         order_data = OrderSerializer(order, context={'request': request}).data
 
         # Notify the customer that their order status changed
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'user_{order.customer.id}',
-            {
-                'type': 'order_update',
-                'message': {
-                    'type': 'ORDER_STATUS_UPDATE',
-                    'order': order_data,
-                }
-            }
-        )
+        # channel_layer = get_channel_layer()
+        # async_to_sync(channel_layer.group_send)(
+        #     f'user_{order.customer.id}',
+        #     {
+        #         'type': 'order_update',
+        #         'message': {
+        #             'type': 'ORDER_STATUS_UPDATE',
+        #             'order': order_data,
+        #         }
+        #     }
+        # )
         # Push notification to customer
             
         customer = order.customer
